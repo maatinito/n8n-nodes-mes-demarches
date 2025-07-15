@@ -1,0 +1,18 @@
+FROM n8nio/n8n:latest
+
+# Passer en mode root pour installer le package
+USER root
+
+# Copier notre plugin packagé
+COPY n8n-nodes-mes-demarches-*.tgz /tmp/
+
+# Installer le plugin
+RUN cd /tmp && \
+    npm install -g n8n-nodes-mes-demarches-*.tgz && \
+    rm n8n-nodes-mes-demarches-*.tgz
+
+# Revenir à l'utilisateur n8n
+USER node
+
+# Variables d'environnement pour le plugin
+ENV N8N_CUSTOM_EXTENSIONS="/usr/local/lib/node_modules"

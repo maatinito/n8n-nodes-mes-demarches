@@ -1,0 +1,66 @@
+{
+  "name": "n8n-nodes-mes-demarches",
+  "version": "0.2.1",
+  "description": "Plugin n8n pour l'intégration avec mes-démarches (Polynésie française)",
+  "keywords": [
+    "n8n-community-node-package",
+    "mes-demarches",
+    "polynésie française",
+    "administration",
+    "dossiers",
+    "démarches"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/maatinito/n8n-nodes-mes-demarches",
+  "author": {
+    "name": "Polynésie française"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maatinito/n8n-nodes-mes-demarches.git"
+  },
+  "engines": {
+    "node": ">=18.10",
+    "pnpm": ">=8.6"
+  },
+  "packageManager": "pnpm@8.6.2",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons && gulp copy:package",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint nodes/**/*.ts credentials/**/*.ts",
+    "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts --fix",
+    "prepublishOnly": "pnpm run build && pnpm run lint",
+    "test": "jest"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/MesDemarchesApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/MesDemarches/MesDemarches.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.5",
+    "@types/node": "^18.16.16",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-n8n-nodes-base": "^1.11.0",
+    "gulp": "^4.0.2",
+    "jest": "^29.6.2",
+    "n8n-workflow": "^1.82.0",
+    "prettier": "^2.7.1",
+    "ts-jest": "^29.1.1",
+    "typescript": "^4.8.4"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

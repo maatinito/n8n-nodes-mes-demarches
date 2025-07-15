@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=password
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      # Permettre l'installation de packages depuis l'interface
+      - N8N_COMMUNITY_PACKAGES_ENABLED=true
+      # Répertoire custom pour n8n 1.0+
+      - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/custom
+      # Mode debug pour voir les erreurs
+      - N8N_LOG_LEVEL=debug
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # Monter le plugin en cours de développement
+      - ./dist:/home/node/.n8n/custom/node_modules/n8n-nodes-mes-demarches:ro
+    restart: unless-stopped
+
+volumes:
+  n8n_data:
