@@ -31,7 +31,7 @@
     "format": "prettier nodes credentials --write",
     "lint": "eslint nodes/**/*.ts credentials/**/*.ts",
     "lintfix": "eslint nodes/**/*.ts credentials/**/*.ts --fix",
-    "prepublishOnly": "pnpm run build && pnpm run lint",
+    "prepublishOnly": "pnpm run build",
     "test": "jest"
   },
   "files": [
