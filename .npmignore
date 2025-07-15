@@ -1,0 +1,50 @@
+# Source files (keep only dist/ for npm)
+nodes/
+credentials/
+src/
+tests/
+
+# Development files
+.github/
+docker-compose*.yml
+Dockerfile*
+start-n8n.sh
+gulpfile.js
+tsconfig.json
+jest.config.js
+.eslintrc.js
+.prettierrc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Dependencies (but keep for local dev)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Include dist/ for npm publication (opposite of .gitignore)
+!dist/
