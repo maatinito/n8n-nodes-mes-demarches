@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-mes-demarches",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Plugin n8n pour l'intégration avec mes-démarches (Polynésie française)",
   "keywords": [
     "n8n-community-node-package",
