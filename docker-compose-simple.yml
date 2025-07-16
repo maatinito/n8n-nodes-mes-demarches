@@ -13,17 +13,19 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - WEBHOOK_URL=http://localhost:5678/
-      # Permettre l'installation de packages depuis l'interface
+      # Permettre l'installation de packages custom
       - N8N_COMMUNITY_PACKAGES_ENABLED=true
-      # Inclure le package installé localement
-      - N8N_NODES_INCLUDE=n8n-nodes-mes-demarches
-      # Mode debug pour voir les erreurs
+      # Mode debug
       - N8N_LOG_LEVEL=debug
+    restart: unless-stopped
+    command: >
+      bash -c "
+        npm install -g /tmp/plugin/*.tgz &&
+        n8n start
+      "
     volumes:
       - n8n_data:/home/node/.n8n
-      # Monter tout le répertoire du projet pour installation
-      - .:/workspace:ro
-    restart: unless-stopped
+      - ./:/tmp/plugin:ro
 
 volumes:
   n8n_data:
