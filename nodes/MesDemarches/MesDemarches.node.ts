@@ -1,6 +1,8 @@
 import type {
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	IRequestOptions,
@@ -243,6 +245,23 @@ export class MesDemarches implements INodeType {
 			},
 			// Paramètres pour les mutations de dossiers
 			{
+				displayName: 'Numéro De Démarche',
+				name: 'demarcheNumber',
+				type: 'number',
+				displayOptions: {
+					show: {
+						operation: ['modifierAnnotation'],
+					},
+				},
+				default: '',
+				placeholder: '123',
+				description: 'Numéro de la démarche (nécessaire pour charger les annotations et instructeurs). Patientez après saisie pour le chargement.',
+				required: true,
+				typeOptions: {
+					numberPrecision: 0, // Pas de décimales
+				},
+			},
+			{
 				displayName: 'Numéro Du Dossier',
 				name: 'dossierNumber',
 				type: 'number',
@@ -356,52 +375,37 @@ export class MesDemarches implements INodeType {
 			},
 			// Paramètres pour modifierAnnotation - Nouveaux champs avec cache
 			{
-				displayName: 'ID Ou Email Instructeur',
+				displayName: 'Instructeur Name or ID',
 				name: 'instructeurIdOrEmail',
-				type: 'string',
-				displayOptions: {
-					show: {
-						operation: ['modifierAnnotation'],
-					},
-				},
-				default: '',
-				placeholder: 'john@domain.com ou SW5zdHJ1Y3RldXItMTIz',
-				description: 'Email ou ID de l\'instructeur qui modifie',
-				required: true,
-			},
-			{
-				displayName: 'ID Ou Nom Annotation',
-				name: 'annotationIdOrName',
-				type: 'string',
-				displayOptions: {
-					show: {
-						operation: ['modifierAnnotation'],
-					},
-				},
-				default: '',
-				placeholder: 'Statut traitement ou Q2hhbXAtNDU2',
-				description: 'Nom ou ID de l\'annotation à modifier',
-				required: true,
-			},
-			{
-				displayName: 'Type D\'Annotation',
-				name: 'annotationType',
 				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getInstructeurs',
+					loadOptionsDependsOn: ['demarcheNumber'],
+				},
 				displayOptions: {
 					show: {
 						operation: ['modifierAnnotation'],
 					},
 				},
-				options: [
-					{ name: 'Case À Cocher', value: 'checkbox' },
-					{ name: 'Date', value: 'date' },
-					{ name: 'Date Et Heure', value: 'datetime' },
-					{ name: 'Liste Déroulante', value: 'drop_down_list' },
-					{ name: 'Nombre Entier', value: 'integer' },
-					{ name: 'Texte', value: 'text' },
-				],
-				default: 'text',
-				description: 'Type de l\'annotation à modifier',
+				default: '',
+				description: 'Instructeur qui modifie l\'annotation (liste chargée depuis la démarche). Vous pouvez aussi utiliser le mode Expression pour une valeur dynamique. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
+				required: true,
+			},
+			{
+				displayName: 'Annotation Name or ID',
+				name: 'annotationIdOrName',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getAnnotations',
+					loadOptionsDependsOn: ['demarcheNumber'],
+				},
+				displayOptions: {
+					show: {
+						operation: ['modifierAnnotation'],
+					},
+				},
+				default: '',
+				description: 'Annotation à modifier (liste chargée depuis la démarche). Vous pouvez aussi utiliser le mode Expression pour une valeur dynamique. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 				required: true,
 			},
 			{
@@ -411,55 +415,12 @@ export class MesDemarches implements INodeType {
 				displayOptions: {
 					show: {
 						operation: ['modifierAnnotation'],
-						annotationType: ['text', 'drop_down_list'],
 					},
 				},
 				default: '',
-				placeholder: 'Nouvelle valeur',
-				description: 'Nouvelle valeur de l\'annotation',
-				required: true,
-			},
-			{
-				displayName: 'Valeur Numérique',
-				name: 'annotationValueNumber',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['modifierAnnotation'],
-						annotationType: ['integer'],
-					},
-				},
-				default: 0,
-				description: 'Nouvelle valeur numérique',
-				required: true,
-			},
-			{
-				displayName: 'Valeur Date',
-				name: 'annotationValueDate',
-				type: 'dateTime',
-				displayOptions: {
-					show: {
-						operation: ['modifierAnnotation'],
-						annotationType: ['date', 'datetime'],
-					},
-				},
-				default: '',
-				description: 'Nouvelle valeur de date',
-				required: true,
-			},
-			{
-				displayName: 'Valeur Booléenne',
-				name: 'annotationValueBoolean',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						operation: ['modifierAnnotation'],
-						annotationType: ['checkbox'],
-					},
-				},
-				default: false,
-				description: 'Whether to set the boolean value to true',
-				required: true,
+				placeholder: 'Nouvelle valeur (voir formats ci-dessous)',
+				description: 'Nouvelle valeur pour l\'annotation sélectionnée. Formats acceptés: • Liste déroulante: saisir exactement une des valeurs proposées • Texte: saisir n\'importe quel texte • Entier: nombre entier (ex: 123) • Date: YYYY-MM-DD (ex: 2024-12-31) • Date-heure: YYYY-MM-DDTHH:MM:SS (ex: 2024-12-31T14:30:00) • Case à cocher: true, false, 1, 0 • Laissez vide pour effacer la valeur',
+				required: false,
 			},
 			// Paramètres pour modifierStatutDossier - Approche unifiée
 			{
@@ -629,6 +590,476 @@ export class MesDemarches implements INodeType {
 
 		return [returnData]; // Une seule sortie pour toutes les opérations
 	}
+
+	methods = {
+		loadOptions: {
+			// eslint-disable-next-line no-unused-vars
+			async getAnnotations(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const startTime = Date.now();
+				const logId = Math.random().toString(36).substr(2, 9);
+				console.log(`🔍 [${logId}] getAnnotations START`);
+				
+				try {
+					const demarcheNumber = this.getNodeParameter('demarcheNumber') as number;
+					console.log(`🔍 [${logId}] demarcheNumber: ${demarcheNumber}`);
+					
+					if (!demarcheNumber) {
+						console.log(`🔍 [${logId}] No demarcheNumber, returning empty array`);
+						return [];
+					}
+
+					// Validation : éviter les appels sur des numéros partiels
+					const demarcheStr = String(demarcheNumber);
+					if (demarcheStr.length < 4) {
+						console.log(`🔍 [${logId}] Demarche number too short (${demarcheStr.length} chars), returning empty array`);
+						return [];
+					}
+
+					// Vérification avec retry pour les credentials + debounce
+					let credentials;
+					let retryCount = 0;
+					const maxRetries = 5;
+					
+					console.log(`🔍 [${logId}] Starting credentials retry loop (max ${maxRetries})`);
+					
+					
+					while (retryCount < maxRetries) {
+						console.log(`🔍 [${logId}] Retry attempt ${retryCount + 1}/${maxRetries}`);
+						
+						try {
+							credentials = await this.getCredentials('mesDemarchesApi') as {
+								server: string;
+								apiToken: string;
+							};
+							
+							console.log(`🔍 [${logId}] getCredentials result:`, {
+								hasCredentials: !!credentials,
+								hasServer: !!credentials?.server,
+								serverValue: credentials?.server,
+								hasToken: !!credentials?.apiToken,
+								tokenLength: credentials?.apiToken?.length || 0,
+								tokenPrefix: credentials?.apiToken?.substring(0, 10) || 'none'
+							});
+							
+							// Vérifier que les credentials sont valides ET non vides
+							if (credentials && 
+								credentials.apiToken && 
+								credentials.apiToken.length > 10 && // Token doit être substantiel
+								credentials.server && 
+								credentials.server.startsWith('http')) { // URL valide
+								console.log(`🔍 [${logId}] Credentials valid, breaking retry loop`);
+								break;
+							} else {
+								console.log(`🔍 [${logId}] Credentials invalid, continuing retry`);
+							}
+						} catch (error) {
+							console.log(`🔍 [${logId}] getCredentials error:`, error instanceof Error ? error.message : String(error));
+						}
+						
+						retryCount++;
+						if (retryCount < maxRetries) {
+							const delay = 200 * retryCount;
+							console.log(`🔍 [${logId}] Waiting ${delay}ms before retry`);
+							await new Promise(resolve => setTimeout(resolve, delay));
+						}
+					}
+
+					if (!credentials || !credentials.apiToken || !credentials.server) {
+						console.log(`🔍 [${logId}] Final credentials check failed, returning loading message`);
+						return [{
+							name: '⏳ Chargement en cours...',
+							value: '',
+							description: 'Credentials en cours de chargement. Si cela persiste, vérifiez la configuration des credentials MesDemarches.'
+						}];
+					}
+
+					console.log(`🔍 [${logId}] Making GraphQL request to ${credentials.server}`);
+
+					// Requête GraphQL pour récupérer les annotations disponibles dans la démarche
+					const query = `
+						query GetDemarche($demarcheNumber: Int!) {
+							demarche(number: $demarcheNumber) {
+								id
+								annotationDescriptors {
+									id
+									label
+									type
+									... on DropDownListChampDescriptor {
+										options
+									}
+								}
+							}
+						}
+					`;
+
+					const variables = { demarcheNumber };
+
+					const requestOptions: IRequestOptions = {
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${credentials.apiToken}`,
+							'Content-Type': 'application/json',
+						},
+						uri: `${credentials.server}/api/v2/graphql`,
+						body: {
+							query,
+							variables,
+						},
+						json: true,
+					};
+
+					const response = await this.helpers.request(requestOptions);
+					console.log(`🔍 [${logId}] GraphQL response received:`, {
+						hasErrors: !!response.errors,
+						errorCount: response.errors?.length || 0,
+						hasData: !!response.data,
+						hasDemarche: !!response.data?.demarche,
+						annotationCount: response.data?.demarche?.annotationDescriptors?.length || 0
+					});
+
+					if (response.errors) {
+						console.log(`🔍 [${logId}] GraphQL errors:`, response.errors);
+						
+						// Gestion spéciale des erreurs de permissions
+						const firstError = response.errors[0];
+						if (firstError?.extensions?.code === 'unauthorized' || 
+							firstError?.message?.includes('hidden due to permissions')) {
+							return [{
+								name: '🔒 Accès Refusé À Cette Démarche',
+								value: '',
+								description: `Votre token n'a pas accès à la démarche ${demarcheNumber}. Vérifiez vos permissions.`
+							}];
+						}
+						
+						// Gestion des démarches inexistantes
+						if (firstError?.message?.includes('not found')) {
+							return [{
+								name: '❓ Démarche Introuvable',
+								value: '',
+								description: 'La démarche , n\'existe pas'
+							}];
+						}
+						
+						throw new NodeOperationError(
+							this.getNode(),
+							`Erreur GraphQL lors de la récupération des annotations: ${firstError?.message || 'Erreur inconnue'}`
+						);
+					}
+
+					const annotations = response.data?.demarche?.annotationDescriptors || [];
+					console.log(`🔍 [${logId}] Processing ${annotations.length} annotations`);
+
+					// Filtrer uniquement les annotations modifiables par l'API
+					const supportedTypes = ['text', 'drop_down_list', 'integer', 'date', 'datetime', 'checkbox'];
+					const modifiableAnnotations = annotations.filter((annotation: any) => 
+						supportedTypes.includes(annotation.type)
+					);
+
+					console.log(`🔍 [${logId}] Filtered to ${modifiableAnnotations.length} modifiable annotations (from ${annotations.length} total)`);
+
+					// Si aucune annotation modifiable, retourner une liste vide
+					if (modifiableAnnotations.length === 0) {
+						const duration = Date.now() - startTime;
+						console.log(`🔍 [${logId}] No modifiable annotations found in ${duration}ms`);
+						return [];
+					}
+
+					// Convertir en options pour la liste déroulante
+					const result = modifiableAnnotations.map((annotation: any) => {
+						let description = `Type: ${annotation.type}`;
+						
+						// Ajouter les options pour les drop_down_list
+						if (annotation.type === 'drop_down_list' && annotation.options) {
+							console.log(`🔍 [${logId}] Dropdown annotation "${annotation.label}" has options:`, annotation.options);
+							description += ` - Options: ${annotation.options.join(', ')}`;
+						}
+						
+						return {
+							name: annotation.label, // Titre simplifié sans type
+							value: annotation.id,
+							description: description
+						};
+					});
+
+					const duration = Date.now() - startTime;
+					console.log(`🔍 [${logId}] getAnnotations SUCCESS - ${result.length} options in ${duration}ms`);
+					return result;
+
+				} catch (error) {
+					const duration = Date.now() - startTime;
+					console.log(`🔍 [${logId}] getAnnotations ERROR after ${duration}ms:`, error instanceof Error ? error.message : String(error));
+					
+					// En cas d'erreur, retourner une option d'erreur plutôt que de throw
+					return [{
+						name: '❌ Erreur De Connexion',
+						value: '',
+						description: `Erreur: ${error instanceof Error ? error.message : String(error)}`
+					}];
+				}
+			},
+
+			// eslint-disable-next-line no-unused-vars
+			async getInstructeurs(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const logId = Math.random().toString(36).substr(2, 9);
+				console.log(`👥 [${logId}] getInstructeurs START`);
+				
+				try {
+					const demarcheNumber = this.getNodeParameter('demarcheNumber') as number;
+					console.log(`👥 [${logId}] demarcheNumber: ${demarcheNumber}`);
+					
+					if (!demarcheNumber) {
+						console.log(`👥 [${logId}] No demarcheNumber, returning empty array`);
+						return [];
+					}
+
+					// Validation : éviter les appels sur des numéros partiels
+					const demarcheStr = String(demarcheNumber);
+					if (demarcheStr.length < 4) {
+						console.log(`👥 [${logId}] Demarche number too short (${demarcheStr.length} chars), returning empty array`);
+						return [];
+					}
+
+					// Vérification avec retry pour les credentials + debounce
+					let credentials;
+					let retryCount = 0;
+					const maxRetries = 5; // Augmenté
+					
+					
+					while (retryCount < maxRetries) {
+						try {
+							credentials = await this.getCredentials('mesDemarchesApi') as {
+								server: string;
+								apiToken: string;
+							};
+							
+							// Vérifier que les credentials sont valides ET non vides
+							if (credentials && 
+								credentials.apiToken && 
+								credentials.apiToken.length > 10 && // Token doit être substantiel
+								credentials.server && 
+								credentials.server.startsWith('http')) { // URL valide
+								break;
+							}
+						} catch (error) {
+							// Ignorer l'erreur et retry
+						}
+						
+						retryCount++;
+						if (retryCount < maxRetries) {
+							// Délai progressif : 200ms, 400ms, 600ms, 800ms
+							await new Promise(resolve => setTimeout(resolve, 200 * retryCount));
+						}
+					}
+
+					if (!credentials || !credentials.apiToken || !credentials.server) {
+						// Retourner une option par défaut pour indiquer que les credentials ne sont pas prêtes
+						return [{
+							name: '⏳ Chargement en cours...',
+							value: '',
+							description: 'Credentials en cours de chargement. Si cela persiste, vérifiez la configuration des credentials MesDemarches.'
+						}];
+					}
+
+					// Requête GraphQL pour récupérer les instructeurs de la démarche
+					const query = `
+						query GetDemarche($demarcheNumber: Int!) {
+							demarche(number: $demarcheNumber) {
+								id
+								groupeInstructeurs {
+									instructeurs {
+										id
+										email
+									}
+								}
+							}
+						}
+					`;
+
+					const variables = { demarcheNumber };
+
+					const requestOptions: IRequestOptions = {
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${credentials.apiToken}`,
+							'Content-Type': 'application/json',
+						},
+						uri: `${credentials.server}/api/v2/graphql`,
+						body: {
+							query,
+							variables,
+						},
+						json: true,
+					};
+
+					const response = await this.helpers.request(requestOptions);
+
+					if (response.errors) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`Erreur GraphQL lors de la récupération des instructeurs: ${response.errors[0]?.message || 'Erreur inconnue'}`
+						);
+					}
+
+					const groupes = response.data?.demarche?.groupeInstructeurs || [];
+					const instructeurs: any[] = [];
+
+					// Collecter tous les instructeurs de tous les groupes
+					groupes.forEach((groupe: any) => {
+						if (groupe.instructeurs) {
+							instructeurs.push(...groupe.instructeurs);
+						}
+					});
+
+					// Supprimer les doublons par email
+					const uniqueInstructeurs = instructeurs.filter((instructeur, index) => 
+						instructeurs.findIndex(i => i.email === instructeur.email) === index
+					);
+
+					// Convertir en options pour la liste déroulante
+					return uniqueInstructeurs.map((instructeur: any) => ({
+						name: instructeur.email,
+						value: instructeur.id,
+						description: `ID: ${instructeur.id}`
+					}));
+
+				} catch (error) {
+					// En cas d'erreur, retourner une option d'erreur plutôt que de throw
+					return [{
+						name: '❌ Erreur De Connexion',
+						value: '',
+						description: `Erreur: ${error instanceof Error ? error.message : String(error)}`
+					}];
+				}
+			},
+
+			// eslint-disable-next-line no-unused-vars
+			async getDropdownValues(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const logId = Math.random().toString(36).substr(2, 9);
+				console.log(`📋 [${logId}] getDropdownValues START`);
+				
+				try {
+					const demarcheNumber = this.getNodeParameter('demarcheNumber') as number;
+					const annotationId = this.getNodeParameter('annotationIdOrName') as string;
+					
+					console.log(`📋 [${logId}] demarcheNumber: ${demarcheNumber}, annotationId: ${annotationId}`);
+					
+					if (!demarcheNumber || !annotationId) {
+						console.log(`📋 [${logId}] Missing parameters, returning empty array`);
+						return [];
+					}
+
+					// Validation : éviter les appels sur des numéros partiels
+					const demarcheStr = String(demarcheNumber);
+					if (demarcheStr.length < 4) {
+						console.log(`📋 [${logId}] Demarche number too short, returning empty array`);
+						return [];
+					}
+
+					// Récupérer les credentials
+					let credentials;
+					let retryCount = 0;
+					const maxRetries = 5;
+					
+					while (retryCount < maxRetries) {
+						try {
+							credentials = await this.getCredentials('mesDemarchesApi') as {
+								server: string;
+								apiToken: string;
+							};
+							
+							if (credentials && 
+								credentials.apiToken && 
+								credentials.apiToken.length > 10 && 
+								credentials.server && 
+								credentials.server.startsWith('http')) {
+								break;
+							}
+						} catch (error) {
+							// Ignorer l'erreur et retry
+						}
+						
+						retryCount++;
+						if (retryCount < maxRetries) {
+							await new Promise(resolve => setTimeout(resolve, 200 * retryCount));
+						}
+					}
+
+					if (!credentials || !credentials.apiToken || !credentials.server) {
+						console.log(`📋 [${logId}] No valid credentials, returning loading message`);
+						return [];
+					}
+
+					// Requête pour récupérer les options de la dropdown
+					const query = `
+						query GetDemarche($demarcheNumber: Int!) {
+							demarche(number: $demarcheNumber) {
+								annotationDescriptors {
+									id
+									type
+									... on DropDownListChampDescriptor {
+										options
+									}
+								}
+							}
+						}
+					`;
+
+					const variables = { demarcheNumber };
+
+					const requestOptions: IRequestOptions = {
+						method: 'POST',
+						headers: {
+							'Authorization': `Bearer ${credentials.apiToken}`,
+							'Content-Type': 'application/json',
+						},
+						uri: `${credentials.server}/api/v2/graphql`,
+						body: {
+							query,
+							variables,
+						},
+						json: true,
+					};
+
+					const response = await this.helpers.request(requestOptions);
+					
+					if (response.errors) {
+						console.log(`📋 [${logId}] GraphQL errors:`, response.errors);
+						return [];
+					}
+
+					const annotations = response.data?.demarche?.annotationDescriptors || [];
+					const targetAnnotation = annotations.find((ann: any) => ann.id === annotationId);
+					
+					if (!targetAnnotation || targetAnnotation.type !== 'drop_down_list') {
+						console.log(`📋 [${logId}] Annotation not found or not dropdown type`);
+						return [];
+					}
+
+					const options = targetAnnotation.options || [];
+					console.log(`📋 [${logId}] Found ${options.length} dropdown options`);
+
+					// Ajouter l'option "Non renseigné" pour vider la valeur
+					const dropdownOptions = [
+						{
+							name: '🗑️ Non Renseigné (Effacer La Valeur)',
+							value: '', // Valeur vide pour effacer
+						},
+						...options.map((option: string) => ({
+							name: option,
+							value: option,
+						}))
+					];
+
+					return dropdownOptions;
+
+				} catch (error) {
+					console.log(`📋 [${logId}] getDropdownValues ERROR:`, error instanceof Error ? error.message : String(error));
+					return [];
+				}
+			},
+
+		}
+	};
 
 }
 
@@ -1137,55 +1568,66 @@ async function envoyerMessage(this: IExecuteFunctions, itemIndex: number): Promi
 }
 
 async function modifierAnnotation(this: IExecuteFunctions, itemIndex: number): Promise<any> {
+	const demarcheNumber = this.getNodeParameter('demarcheNumber', itemIndex) as number;
 	const dossierNumber = this.getNodeParameter('dossierNumber', itemIndex) as number;
 	const instructeurIdOrEmail = this.getNodeParameter('instructeurIdOrEmail', itemIndex) as string;
 	const annotationIdOrName = this.getNodeParameter('annotationIdOrName', itemIndex) as string;
-	const annotationType = this.getNodeParameter('annotationType', itemIndex) as string;
+	const annotationValue = this.getNodeParameter('annotationValue', itemIndex) as string;
 
 	// Convertir le numéro de dossier en ID GraphQL
 	const dossierId = numberToGraphQLId('Dossier', dossierNumber);
 	
-	// Résoudre l'instructeur via cache intelligent
-	const instructeurId = await resolveInstructeurId.call(this, instructeurIdOrEmail, dossierNumber);
+	// 1. Valider que le dossier appartient à la démarche
+	await validateDossierBelongsToDemarche.call(this, dossierNumber, demarcheNumber);
 	
-	// Résoudre l'annotation via cache intelligent
-	const annotationId = await resolveAnnotationId.call(this, annotationIdOrName, dossierNumber);
+	// 2. Résoudre l'instructeur ID (peut être un ID ou un email)
+	const instructeurId = await resolveInstructeurIdFromDemarche.call(this, instructeurIdOrEmail, demarcheNumber);
+	
+	// 3. Récupérer le type d'annotation et son ID depuis la démarche
+	const annotationInfo = await getAnnotationInfoFromDemarche.call(this, annotationIdOrName, demarcheNumber);
+	const { annotationId, annotationType } = annotationInfo;
 
+	// 4. Auto-détecter le type de mutation et formatter la valeur
 	let value: any;
 	let mutationName: string;
 	let inputType: string;
 
-	// Déterminer la valeur et le type de mutation selon le type d'annotation
 	switch (annotationType) {
 		case 'text':
+			value = annotationValue;
+			mutationName = 'dossierModifierAnnotationText';
+			inputType = 'DossierModifierAnnotationTextInput';
+			break;
 		case 'drop_down_list':
-			value = this.getNodeParameter('annotationValue', itemIndex) as string;
+			// Utiliser uniquement la valeur d'annotation
+			value = annotationValue;
 			mutationName = 'dossierModifierAnnotationText';
 			inputType = 'DossierModifierAnnotationTextInput';
 			break;
 		case 'integer':
-			value = this.getNodeParameter('annotationValueNumber', itemIndex) as number;
+			value = parseInt(annotationValue, 10);
+			if (isNaN(value)) {
+				throw new NodeOperationError(this.getNode(), `Valeur "${annotationValue}" invalide pour une annotation de type entier`);
+			}
 			mutationName = 'dossierModifierAnnotationIntegerNumber';
 			inputType = 'DossierModifierAnnotationIntegerNumberInput';
 			break;
 		case 'date':
-			value = this.getNodeParameter('annotationValueDate', itemIndex) as string;
+			if (annotationValue) {
+				value = new Date(annotationValue).toISOString().split('T')[0]; // Format YYYY-MM-DD
+			}
 			mutationName = 'dossierModifierAnnotationDate';
 			inputType = 'DossierModifierAnnotationDateInput';
-			if (value) {
-				value = new Date(value).toISOString().split('T')[0]; // Format YYYY-MM-DD
-			}
 			break;
 		case 'datetime':
-			value = this.getNodeParameter('annotationValueDate', itemIndex) as string;
+			if (annotationValue) {
+				value = new Date(annotationValue).toISOString(); // Format ISO complet
+			}
 			mutationName = 'dossierModifierAnnotationDatetime';
 			inputType = 'DossierModifierAnnotationDatetimeInput';
-			if (value) {
-				value = new Date(value).toISOString(); // Format ISO complet
-			}
 			break;
 		case 'checkbox':
-			value = this.getNodeParameter('annotationValueBoolean', itemIndex) as boolean;
+			value = annotationValue.toLowerCase() === 'true' || annotationValue === '1';
 			mutationName = 'dossierModifierAnnotationCheckbox';
 			inputType = 'DossierModifierAnnotationCheckboxInput';
 			break;
@@ -1510,15 +1952,6 @@ function isEmail(input: string): boolean {
 	return input.includes('@') && input.includes('.');
 }
 
-function isAnnotationId(input: string): boolean {
-	// Spécifique aux annotations
-	try {
-		const decoded = Buffer.from(input, 'base64').toString();
-		return decoded.includes('Champ-');
-	} catch {
-		return false;
-	}
-}
 
 function isInstructeurId(input: string): boolean {
 	// Spécifique aux instructeurs
@@ -1573,23 +2006,6 @@ async function resolveInstructeurId(this: IExecuteFunctions, input: string, doss
 	throw new NodeOperationError(this.getNode(), `Instructeur invalide: '${input}'`);
 }
 
-async function resolveAnnotationId(this: IExecuteFunctions, input: string, dossierNumber: number): Promise<string> {
-	// 1) Test direct ID GraphQL
-	if (isAnnotationId(input)) {
-		return input;
-	}
-
-	// 2) Si ce n'est pas un ID → c'est un libellé → besoin du cache
-	const demarcheNumber = await getDemarcheNumberFromDossier.call(this, dossierNumber);
-	const cache = await buildDemarcheCache.call(this, demarcheNumber);
-	const annotationId = cache.annotations.get(input);
-
-	if (!annotationId) {
-		throw new NodeOperationError(this.getNode(), `Annotation avec le nom '${input}' non trouvée dans la démarche`);
-	}
-
-	return annotationId;
-}
 
 async function modifierStatutDossier(this: IExecuteFunctions, itemIndex: number): Promise<any> {
 	const dossierNumber = this.getNodeParameter('dossierNumber', itemIndex) as number;
@@ -1758,5 +2174,210 @@ async function executePasserEnInstruction(this: IExecuteFunctions, dossierId: st
 	};
 
 	return await makeGraphQLMutation.call(this, mutation, variables, 'PasserEnInstruction');
+}
+
+// Nouvelles fonctions utilitaires pour modifierAnnotation
+
+async function validateDossierBelongsToDemarche(this: IExecuteFunctions, dossierNumber: number, demarcheNumber: number): Promise<void> {
+	const query = `
+		query ValidateDossierDemarche($dossierNumber: Int!) {
+			dossier(number: $dossierNumber) {
+				id
+				demarche {
+					number
+				}
+			}
+		}
+	`;
+
+	const variables = { dossierNumber };
+	const credentials = await this.getCredentials('mesDemarchesApi');
+	
+	const options: IRequestOptions = {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${credentials.apiToken}`,
+		},
+		uri: `${credentials.server}/api/v2/graphql`,
+		body: {
+			query,
+			variables,
+		},
+		json: true,
+	};
+
+	const response = await this.helpers.request(options);
+
+	if (response.errors) {
+		throw new NodeOperationError(this.getNode(), `Erreur lors de la vérification du dossier: ${response.errors[0]?.message || 'Erreur inconnue'}`);
+	}
+
+	const dossier = response.data?.dossier;
+	if (!dossier) {
+		throw new NodeOperationError(this.getNode(), `Dossier ${dossierNumber} non trouvé`);
+	}
+
+	if (dossier.demarche.number !== demarcheNumber) {
+		throw new NodeOperationError(this.getNode(), `Le dossier ${dossierNumber} n'appartient pas à la démarche ${demarcheNumber} (appartient à la démarche ${dossier.demarche.number})`);
+	}
+}
+
+async function resolveInstructeurIdFromDemarche(this: IExecuteFunctions, instructeurIdOrEmail: string, demarcheNumber: number): Promise<string> {
+	// Si c'est déjà un ID GraphQL, le retourner directement
+	if (instructeurIdOrEmail.includes('=') || instructeurIdOrEmail.startsWith('SW5zdHJ1Y3RldXI')) {
+		return instructeurIdOrEmail;
+	}
+
+	// Sinon, chercher par email dans la démarche
+	const query = `
+		query GetInstructeurFromDemarche($demarcheNumber: Int!) {
+			demarche(number: $demarcheNumber) {
+				groupeInstructeurs {
+					instructeurs {
+						id
+						email
+					}
+				}
+			}
+		}
+	`;
+
+	const variables = { demarcheNumber };
+	const credentials = await this.getCredentials('mesDemarchesApi');
+	
+	const options: IRequestOptions = {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${credentials.apiToken}`,
+		},
+		uri: `${credentials.server}/api/v2/graphql`,
+		body: {
+			query,
+			variables,
+		},
+		json: true,
+	};
+
+	const response = await this.helpers.request(options);
+
+	if (response.errors) {
+		throw new NodeOperationError(this.getNode(), `Erreur lors de la recherche de l'instructeur: ${response.errors[0]?.message || 'Erreur inconnue'}`);
+	}
+
+	const groupes = response.data?.demarche?.groupeInstructeurs || [];
+	for (const groupe of groupes) {
+		if (groupe.instructeurs) {
+			const instructeur = groupe.instructeurs.find((i: any) => i.email === instructeurIdOrEmail);
+			if (instructeur) {
+				return instructeur.id;
+			}
+		}
+	}
+
+	throw new NodeOperationError(this.getNode(), `Instructeur avec email "${instructeurIdOrEmail}" non trouvé dans la démarche ${demarcheNumber}`);
+}
+
+async function getAnnotationInfoFromDemarche(this: IExecuteFunctions, annotationIdOrName: string, demarcheNumber: number): Promise<{annotationId: string, annotationType: string}> {
+	// Si c'est déjà un ID GraphQL, récupérer le type
+	if (annotationIdOrName.includes('=') || annotationIdOrName.startsWith('Q2hhbXA')) {
+		// Récupérer le type depuis l'ID
+		const query = `
+			query GetAnnotationInfo($demarcheNumber: Int!) {
+				demarche(number: $demarcheNumber) {
+					annotationDescriptors {
+						id
+						label
+						type
+					}
+				}
+			}
+		`;
+
+		const variables = { demarcheNumber };
+		const credentials = await this.getCredentials('mesDemarchesApi');
+		
+		const options: IRequestOptions = {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Authorization': `Bearer ${credentials.apiToken}`,
+			},
+			uri: `${credentials.server}/api/v2/graphql`,
+			body: {
+				query,
+				variables,
+			},
+			json: true,
+		};
+
+		const response = await this.helpers.request(options);
+
+		if (response.errors) {
+			throw new NodeOperationError(this.getNode(), `Erreur lors de la recherche de l'annotation: ${response.errors[0]?.message || 'Erreur inconnue'}`);
+		}
+
+		const annotations = response.data?.demarche?.annotationDescriptors || [];
+		const annotation = annotations.find((a: any) => a.id === annotationIdOrName);
+		
+		if (!annotation) {
+			throw new NodeOperationError(this.getNode(), `Annotation avec ID "${annotationIdOrName}" non trouvée dans la démarche ${demarcheNumber}`);
+		}
+
+		return {
+			annotationId: annotation.id,
+			annotationType: annotation.type
+		};
+	}
+
+	// Sinon, chercher par nom dans la démarche
+	const query = `
+		query GetAnnotationByName($demarcheNumber: Int!) {
+			demarche(number: $demarcheNumber) {
+				annotationDescriptors {
+					id
+					label
+					type
+				}
+			}
+		}
+	`;
+
+	const variables = { demarcheNumber };
+	const credentials = await this.getCredentials('mesDemarchesApi');
+	
+	const options: IRequestOptions = {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'Authorization': `Bearer ${credentials.apiToken}`,
+		},
+		uri: `${credentials.server}/api/v2/graphql`,
+		body: {
+			query,
+			variables,
+		},
+		json: true,
+	};
+
+	const response = await this.helpers.request(options);
+
+	if (response.errors) {
+		throw new NodeOperationError(this.getNode(), `Erreur lors de la recherche de l'annotation: ${response.errors[0]?.message || 'Erreur inconnue'}`);
+	}
+
+	const annotations = response.data?.demarche?.annotationDescriptors || [];
+	const annotation = annotations.find((a: any) => a.label === annotationIdOrName);
+	
+	if (!annotation) {
+		const availableAnnotations = annotations.map((a: any) => a.label).join(', ');
+		throw new NodeOperationError(this.getNode(), `Annotation avec le nom "${annotationIdOrName}" non trouvée dans la démarche ${demarcheNumber}. Annotations disponibles: ${availableAnnotations}`);
+	}
+
+	return {
+		annotationId: annotation.id,
+		annotationType: annotation.type
+	};
 }
 
