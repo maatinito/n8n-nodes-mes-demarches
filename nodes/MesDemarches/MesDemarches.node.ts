@@ -86,34 +86,55 @@ export class MesDemarches implements INodeType {
 				],
 				default: 'listDossiers',
 			},
-			// Paramètres pour getDossier - placés en tête
-			{
-				displayName: 'Numéro De Dossier',
-				name: 'dossierNumber',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['getDossier'],
-					},
-				},
-				default: '',
-				placeholder: '456',
-				description: 'Numéro du dossier à consulter',
-				required: true,
-			},
-			// Paramètres pour listDossiers
+			// Paramètre unifié : Numéro de démarche (utilisé par plusieurs opérations) - PREMIER
 			{
 				displayName: 'Numéro De Démarche',
 				name: 'demarcheNumber',
 				type: 'number',
 				displayOptions: {
 					show: {
-						operation: ['listDossiers', 'getDemarche'],
+						operation: ['listDossiers', 'getDemarche', 'modifierAnnotation', 'envoyerMessage', 'modifierStatutDossier', 'handleError'],
 					},
 				},
 				default: '',
 				placeholder: '123',
 				description: 'Numéro de la démarche à consulter',
+				required: true,
+				typeOptions: {
+					numberPrecision: 0,
+				},
+			},
+			// Paramètre unifié : Numéro de dossier (utilisé par plusieurs opérations) - SECOND
+			{
+				displayName: 'Numéro De Dossier',
+				name: 'dossierNumber',
+				type: 'number',
+				displayOptions: {
+					show: {
+						operation: ['getDossier', 'modifierAnnotation', 'envoyerMessage', 'modifierStatutDossier'],
+					},
+				},
+				default: '',
+				placeholder: '456',
+				description: 'Numéro du dossier',
+				required: true,
+			},
+			// Paramètre unifié : Instructeur (utilisé par plusieurs opérations)
+			{
+				displayName: 'Instructeur',
+				name: 'instructeurIdOrEmail',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getInstructeurs',
+					loadOptionsDependsOn: ['demarcheNumber'],
+				},
+				displayOptions: {
+					show: {
+						operation: ['modifierAnnotation', 'envoyerMessage', 'modifierStatutDossier'],
+					},
+				},
+				default: '',
+				description: 'Instructeur qui effectue l\'opération (liste chargée depuis la démarche). Vous pouvez aussi utiliser le mode Expression pour une valeur dynamique.',
 				required: true,
 			},
 			{
@@ -243,38 +264,7 @@ export class MesDemarches implements INodeType {
 				default: ['champs'],
 				description: 'Données à inclure dans le dossier. Les champs incluent automatiquement les annotations.',
 			},
-			// Paramètres pour les mutations de dossiers
-			{
-				displayName: 'Numéro De Démarche',
-				name: 'demarcheNumber',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['modifierAnnotation'],
-					},
-				},
-				default: '',
-				placeholder: '123',
-				description: 'Numéro de la démarche (nécessaire pour charger les annotations et instructeurs). Patientez après saisie pour le chargement.',
-				required: true,
-				typeOptions: {
-					numberPrecision: 0, // Pas de décimales
-				},
-			},
-			{
-				displayName: 'Numéro Du Dossier',
-				name: 'dossierNumber',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['envoyerMessage', 'modifierAnnotation'],
-					},
-				},
-				default: '',
-				placeholder: '123456',
-				description: 'Numéro du dossier (exemple: 123456)',
-				required: true,
-			},
+			// Paramètres spécifiques pour modifierAnnotation
 			{
 				displayName: 'Motivation',
 				name: 'motivation',
@@ -313,21 +303,7 @@ export class MesDemarches implements INodeType {
 				placeholder: 'ID du blob de la pièce justificative',
 				description: 'ID de la pièce justificative jointe à la décision',
 			},
-			// Paramètres pour envoyerMessage - Cache intelligent
-			{
-				displayName: 'ID Ou Email Instructeur',
-				name: 'instructeurIdOrEmailMessage',
-				type: 'string',
-				displayOptions: {
-					show: {
-						operation: ['envoyerMessage'],
-					},
-				},
-				default: '',
-				placeholder: 'clautier@idt.pf ou SW5zdHJ1Y3RldXItMTIz',
-				description: 'Email ou ID de l\'instructeur qui envoie le message',
-				required: true,
-			},
+			// Paramètres spécifiques pour envoyerMessage
 			{
 				displayName: 'Message',
 				name: 'messageBody',
@@ -373,24 +349,7 @@ export class MesDemarches implements INodeType {
 				default: '',
 				description: 'Type de correction demandée',
 			},
-			// Paramètres pour modifierAnnotation - Nouveaux champs avec cache
-			{
-				displayName: 'Instructeur Name or ID',
-				name: 'instructeurIdOrEmail',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getInstructeurs',
-					loadOptionsDependsOn: ['demarcheNumber'],
-				},
-				displayOptions: {
-					show: {
-						operation: ['modifierAnnotation'],
-					},
-				},
-				default: '',
-				description: 'Instructeur qui modifie l\'annotation (liste chargée depuis la démarche). Vous pouvez aussi utiliser le mode Expression pour une valeur dynamique. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
-				required: true,
-			},
+			// Paramètres spécifiques pour modifierAnnotation
 			{
 				displayName: 'Annotation Name or ID',
 				name: 'annotationIdOrName',
@@ -422,35 +381,7 @@ export class MesDemarches implements INodeType {
 				description: 'Nouvelle valeur pour l\'annotation sélectionnée. Formats acceptés: • Liste déroulante: saisir exactement une des valeurs proposées • Texte: saisir n\'importe quel texte • Entier: nombre entier (ex: 123) • Date: YYYY-MM-DD (ex: 2024-12-31) • Date-heure: YYYY-MM-DDTHH:MM:SS (ex: 2024-12-31T14:30:00) • Case à cocher: true, false, 1, 0 • Laissez vide pour effacer la valeur',
 				required: false,
 			},
-			// Paramètres pour modifierStatutDossier - Approche unifiée
-			{
-				displayName: 'Numéro De Dossier',
-				name: 'dossierNumber',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['modifierStatutDossier'],
-					},
-				},
-				default: '',
-				placeholder: '540400',
-				description: 'Numéro du dossier à modifier',
-				required: true,
-			},
-			{
-				displayName: 'ID Ou Email Instructeur',
-				name: 'instructeurIdOrEmailStatut',
-				type: 'string',
-				displayOptions: {
-					show: {
-						operation: ['modifierStatutDossier'],
-					},
-				},
-				default: '',
-				placeholder: 'clautier@idt.pf ou SW5zdHJ1Y3RldXItMTIz',
-				description: 'Email ou ID de l\'instructeur qui modifie le statut',
-				required: true,
-			},
+			// Paramètres spécifiques pour modifierStatutDossier
 			{
 				displayName: 'Action',
 				name: 'actionStatut',
@@ -464,6 +395,7 @@ export class MesDemarches implements INodeType {
 					{ name: 'Accepter', value: 'accepter' },
 					{ name: 'Refuser', value: 'refuser' },
 					{ name: 'Classer Sans Suite', value: 'classer_sans_suite' },
+					{ name: 'Passer En Construction', value: 'passer_en_construction' },
 					{ name: 'Passer En Instruction', value: 'passer_en_instruction' },
 				],
 				default: 'accepter',
@@ -514,20 +446,6 @@ export class MesDemarches implements INodeType {
 				},
 				default: false,
 				description: 'Whether to disable sending notification to the user',
-			},
-			{
-				displayName: 'Numéro De Démarche',
-				name: 'demarcheNumber',
-				type: 'number',
-				displayOptions: {
-					show: {
-						operation: ['handleError'],
-					},
-				},
-				default: '',
-				placeholder: '123',
-				description: 'Numéro de la démarche dont il faut corriger la synchronisation',
-				required: true,
 			},
 		],
 	};
@@ -1527,8 +1445,9 @@ async function makeStoredQueryRequest(this: IExecuteFunctions, queryId: string, 
 
 
 async function envoyerMessage(this: IExecuteFunctions, itemIndex: number): Promise<any> {
+	const demarcheNumber = this.getNodeParameter('demarcheNumber', itemIndex) as number;
 	const dossierNumber = this.getNodeParameter('dossierNumber', itemIndex) as number;
-	const instructeurIdOrEmail = this.getNodeParameter('instructeurIdOrEmailMessage', itemIndex) as string;
+	const instructeurIdOrEmail = this.getNodeParameter('instructeurIdOrEmail', itemIndex) as string;
 	const messageBody = this.getNodeParameter('messageBody', itemIndex) as string;
 	const attachment = this.getNodeParameter('attachment', itemIndex, '') as string;
 	const correction = this.getNodeParameter('correction', itemIndex, '') as string;
@@ -1536,8 +1455,11 @@ async function envoyerMessage(this: IExecuteFunctions, itemIndex: number): Promi
 	// Convertir le numéro de dossier en ID GraphQL
 	const dossierId = numberToGraphQLId('Dossier', dossierNumber);
 	
-	// Résoudre l'instructeur via cache intelligent
-	const instructeurId = await resolveInstructeurId.call(this, instructeurIdOrEmail, dossierNumber);
+	// 1. Valider que le dossier appartient à la démarche
+	await validateDossierBelongsToDemarche.call(this, dossierNumber, demarcheNumber);
+	
+	// 2. Résoudre l'instructeur ID depuis la démarche
+	const instructeurId = await resolveInstructeurIdFromDemarche.call(this, instructeurIdOrEmail, demarcheNumber);
 
 	const mutation = `
 		mutation EnvoyerMessage($input: DossierEnvoyerMessageInput!) {
@@ -2008,14 +1930,16 @@ async function resolveInstructeurId(this: IExecuteFunctions, input: string, doss
 
 
 async function modifierStatutDossier(this: IExecuteFunctions, itemIndex: number): Promise<any> {
+	const demarcheNumber = this.getNodeParameter('demarcheNumber', itemIndex) as number;
 	const dossierNumber = this.getNodeParameter('dossierNumber', itemIndex) as number;
-	const instructeurIdOrEmail = this.getNodeParameter('instructeurIdOrEmailStatut', itemIndex) as string;
+	const instructeurIdOrEmail = this.getNodeParameter('instructeurIdOrEmail', itemIndex) as string;
 	const action = this.getNodeParameter('actionStatut', itemIndex) as string;
 	const motivation = this.getNodeParameter('motivationStatut', itemIndex, '') as string;
 	const justificatif = this.getNodeParameter('justificatifStatut', itemIndex, '') as string;
 	const disableNotification = this.getNodeParameter('disableNotificationStatut', itemIndex, false) as boolean;
 
 	console.log('🔄 [DEBUG] Modification statut dossier:', {
+		demarcheNumber,
 		dossierNumber,
 		instructeurIdOrEmail,
 		action,
@@ -2027,8 +1951,11 @@ async function modifierStatutDossier(this: IExecuteFunctions, itemIndex: number)
 	// Convertir le numéro de dossier en ID GraphQL
 	const dossierId = numberToGraphQLId('Dossier', dossierNumber);
 	
-	// Résoudre l'instructeur via cache intelligent
-	const instructeurId = await resolveInstructeurId.call(this, instructeurIdOrEmail, dossierNumber);
+	// 1. Valider que le dossier appartient à la démarche
+	await validateDossierBelongsToDemarche.call(this, dossierNumber, demarcheNumber);
+	
+	// 2. Résoudre l'instructeur ID depuis la démarche
+	const instructeurId = await resolveInstructeurIdFromDemarche.call(this, instructeurIdOrEmail, demarcheNumber);
 	
 	// Validation spécifique selon l'action
 	if (action === 'refuser' && !motivation.trim()) {
@@ -2045,6 +1972,9 @@ async function modifierStatutDossier(this: IExecuteFunctions, itemIndex: number)
 			
 		case 'classer_sans_suite':
 			return await executeClasserSansSuite.call(this, dossierId, instructeurId, motivation, justificatif, disableNotification);
+			
+		case 'passer_en_construction':
+			return await executePasserEnConstruction.call(this, dossierId, instructeurId, disableNotification);
 			
 		case 'passer_en_instruction':
 			return await executePasserEnInstruction.call(this, dossierId, instructeurId, disableNotification);
@@ -2146,6 +2076,34 @@ async function executeClasserSansSuite(this: IExecuteFunctions, dossierId: strin
 	};
 
 	return await makeGraphQLMutation.call(this, mutation, variables, 'ClasserSansSuite');
+}
+
+async function executePasserEnConstruction(this: IExecuteFunctions, dossierId: string, instructeurId: string, disableNotification?: boolean): Promise<any> {
+	const mutation = `
+		mutation PasserEnConstruction($input: DossierPasserEnConstructionInput!) {
+			dossierPasserEnConstruction(input: $input) {
+				dossier {
+					id
+					number
+					state
+					dateDerniereModification
+				}
+				errors {
+					message
+				}
+			}
+		}
+	`;
+
+	const variables = {
+		input: {
+			dossierId,
+			instructeurId,
+			disableNotification: !!disableNotification,
+		},
+	};
+
+	return await makeGraphQLMutation.call(this, mutation, variables, 'PasserEnConstruction');
 }
 
 async function executePasserEnInstruction(this: IExecuteFunctions, dossierId: string, instructeurId: string, disableNotification?: boolean): Promise<any> {
