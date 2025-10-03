@@ -194,9 +194,9 @@ export class MesDemarches implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'État Des Dossiers',
-				name: 'state',
-				type: 'options',
+				displayName: 'États Des Dossiers',
+				name: 'states',
+				type: 'multiOptions',
 				displayOptions: {
 					show: {
 						operation: ['listDossiers'],
@@ -208,10 +208,9 @@ export class MesDemarches implements INodeType {
 					{ name: 'En Construction', value: 'en_construction' },
 					{ name: 'En Instruction', value: 'en_instruction' },
 					{ name: 'Refusé', value: 'refuse' },
-					{ name: 'Tous Les États', value: '' },
 				],
-				default: '',
-				description: 'Filtrer les dossiers par état',
+				default: [],
+				description: 'Filtrer par un ou plusieurs états (vide = tous les états)',
 			},
 			{
 				displayName: 'Format De Sortie',
@@ -1198,6 +1197,7 @@ async function handleListDossiersExecution(
 	for (let i = 0; i < items.length; i++) {
 		try {
 			demarcheNumber = this.getNodeParameter('demarcheNumber', i) as number;
+			const states = this.getNodeParameter('states', i) as string[];
 
 			// Vérifier et afficher le warning si nécessaire
 			const warning = await checkErrorWorkflowWarning.call(this, i);
@@ -1205,17 +1205,22 @@ async function handleListDossiersExecution(
 				returnData.push(warning);
 			}
 
-			// Toujours mode "par lot" - traiter un lot par exécution
-			const batchResult = await getPagedDossiers.call(this, i);
+			// Si aucun état sélectionné = tous les états
+			const statesToProcess = states.length === 0 ? [''] : states;
 
-			batchResult.dossiers.forEach((dossier: any) => {
-				returnData.push({
-					json: dossier,
-					pairedItem: { item: i },
+			// Boucler sur chaque état avec le même timestamp
+			for (const state of statesToProcess) {
+				const batchResult = await getPagedDossiers.call(this, i, undefined, state);
+
+				batchResult.dossiers.forEach((dossier: any) => {
+					returnData.push({
+						json: dossier,
+						pairedItem: { item: i },
+					});
 				});
-			});
 
-			processedDossiers = batchResult.dossiers;
+				processedDossiers.push(...batchResult.dossiers);
+			}
 		} catch (error) {
 			allSuccess = false;
 			if (this.continueOnFail()) {
@@ -1242,6 +1247,7 @@ async function getPagedDossiers(
 	this: IExecuteFunctions,
 	itemIndex: number,
 	cursor?: string,
+	stateOverride?: string,
 ): Promise<{
 	dossiers: any[];
 	hasMore: boolean;
@@ -1252,8 +1258,10 @@ async function getPagedDossiers(
 	const demarcheNumber = this.getNodeParameter('demarcheNumber', itemIndex) as number;
 	const modifiedSince = this.getNodeParameter('modifiedSince', itemIndex) as string;
 	const outputFormat = this.getNodeParameter('outputFormat', itemIndex) as string;
-	const state = this.getNodeParameter('state', itemIndex) as string;
 	const includeOptions = this.getNodeParameter('includeOptions', itemIndex) as string[];
+
+	// Utiliser stateOverride si fourni (depuis la boucle), sinon ignorer
+	const state = stateOverride !== undefined ? stateOverride : '';
 
 	// Paramètres techniques fixes
 	const pageSize = 100; // Maximum mes-démarches
