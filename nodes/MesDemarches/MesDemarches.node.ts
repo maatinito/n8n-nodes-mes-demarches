@@ -726,6 +726,7 @@ export class MesDemarches implements INodeType {
 					// Filtrer uniquement les annotations modifiables par l'API
 					const supportedTypes = [
 						'text',
+						'textarea',
 						'drop_down_list',
 						'integer',
 						'date',
@@ -1659,6 +1660,11 @@ async function modifierAnnotation(this: IExecuteFunctions, itemIndex: number): P
 			mutationName = 'dossierModifierAnnotationText';
 			inputType = 'DossierModifierAnnotationTextInput';
 			break;
+		case 'textarea':
+			value = annotationValue;
+			mutationName = 'dossierModifierAnnotationText';
+			inputType = 'DossierModifierAnnotationTextInput';
+			break;
 		case 'drop_down_list':
 			// Utiliser uniquement la valeur d'annotation
 			value = annotationValue;
@@ -1691,7 +1697,12 @@ async function modifierAnnotation(this: IExecuteFunctions, itemIndex: number): P
 			inputType = 'DossierModifierAnnotationDatetimeInput';
 			break;
 		case 'checkbox':
-			value = annotationValue.toLowerCase() === 'true' || annotationValue === '1';
+			// Gérer les booléens et les chaînes de caractères
+			if (typeof annotationValue === 'boolean') {
+				value = annotationValue;
+			} else {
+				value = String(annotationValue).toLowerCase() === 'true' || annotationValue === '1';
+			}
 			mutationName = 'dossierModifierAnnotationCheckbox';
 			inputType = 'DossierModifierAnnotationCheckboxInput';
 			break;
